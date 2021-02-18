@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 [RequireComponent(typeof(MeshFilter))]
 public class MeshGenerator : MonoBehaviour
@@ -10,8 +11,11 @@ public class MeshGenerator : MonoBehaviour
     public int xSize = 20;
     public int zSize = 20;
 
-    Vector3[] vertices;
-    int[] trigs;
+    private Vector3[] vertices;
+    private int[] trigs;
+
+    private Color[] colors;
+    public Gradient gradient;
 
     // Start is called before the first frame update
     void Start()
@@ -19,7 +23,8 @@ public class MeshGenerator : MonoBehaviour
         mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = mesh;
 
-        StartCoroutine(CreateShape());
+        //StartCoroutine(CreateShape());
+        CreateShape();
     }
 
     private void Update()
@@ -27,7 +32,14 @@ public class MeshGenerator : MonoBehaviour
         UpdateMesh();
     }
 
-    IEnumerator CreateShape()
+    void CreateShape()
+    {
+        initVertices();
+        initTriangles();
+        setUpColors();
+    }
+
+    private void initVertices()
     {
         vertices = new Vector3[(xSize + 1) * (zSize + 1)];
 
@@ -35,11 +47,14 @@ public class MeshGenerator : MonoBehaviour
         {
             for (int x = 0; x <= xSize; x++)
             {
-                float y = Mathf.PerlinNoise(x * .3f, z * .3f) * 2f;
+                float y = Mathf.PerlinNoise(x * .3f, z * .3f) * 5f;
                 vertices[z * (zSize + 1) + x] = new Vector3(x, y, z);
             }
         }
+    }
 
+    private void initTriangles()
+    {
         trigs = new int[xSize * zSize * 6];
         int vert = 0;
         int triIndex = 0;
@@ -55,10 +70,26 @@ public class MeshGenerator : MonoBehaviour
                 trigs[triIndex++] = vert + xSize + 2;
 
                 vert++;
-
-                yield return new WaitForSeconds(.01f);
             }
             vert++;
+        }
+    }
+
+    private void setUpColors()
+    {
+        float minHeight = vertices[0].y;
+        float maxHeight = minHeight;
+        foreach (Vector3 vertex in vertices)
+        {
+            minHeight = Mathf.Min(minHeight, vertex.y);
+            maxHeight = Mathf.Max(maxHeight, vertex.y);
+        }
+
+        colors = new Color[vertices.Length];
+        for (int i = 0; i < vertices.Length; i++) {
+            float height = Mathf.InverseLerp(minHeight, maxHeight, vertices[i].y);
+            colors[i] = gradient.Evaluate(height);
+            print(height);
         }
     }
 
@@ -68,6 +99,7 @@ public class MeshGenerator : MonoBehaviour
 
         mesh.vertices = vertices;
         mesh.triangles = trigs;
+        mesh.colors = colors;
 
         mesh.RecalculateNormals();
     }
